@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel, QPushButton, QFileDialog, QSizePolicy
+from PySide6.QtWidgets import QWidget, QFrame, QVBoxLayout, QHBoxLayout, QTabWidget, QLabel, QPushButton, QFileDialog, QSizePolicy, QMessageBox
 from records import Database, emptyDB
 from utils import newHLine
 
@@ -46,12 +46,12 @@ class MainWindow(QWidget):
         self.globalsTab = GlobalsTab(self)
         self.tab_widget.addTab(self.globalsTab, "Globals")
 
-        self.openButton = QPushButton("Open")
+        self.openButton = QPushButton("Open Database")
         self.openButton.clicked.connect(self.open)
-        self.saveButton = QPushButton("Save")
+        self.saveButton = QPushButton("Save Database")
         self.saveButton.setEnabled(not self.fileManager.filePath == None)
         self.saveButton.clicked.connect(self.save)
-        self.saveAsButton = QPushButton("Save As")
+        self.saveAsButton = QPushButton("Save Database As")
         self.saveAsButton.clicked.connect(self.saveAs)
         
         hlayout = QHBoxLayout()
@@ -98,6 +98,7 @@ class MainWindow(QWidget):
     def save(self):
         assert(not self.fileManager.filePath == None)
         self.fileManager.saveFile()
+        QMessageBox.information(self, "Success", "Save successful!")
 
     def saveAs(self):
         self.openButton.setEnabled(False)
