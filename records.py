@@ -1,10 +1,11 @@
 import sqlite3
+import datetime
 from utils import listToString, stringToList
 
 class Material:
     def __init__(self, name) -> None:
         self.name = name
-        self.db: Database = None
+        self.db: Database | None = None
         self.price = None
         self.freight = None
         self.SiO2 = None
@@ -92,7 +93,7 @@ class Material:
 class Package:
     def __init__(self, name, kind, price) -> None:
         self.name = name
-        self.db: Database = None
+        self.db: Database | None = None
         self.kind = kind
         self.price = price
     def getTuple(self):
@@ -112,20 +113,23 @@ class Package:
 class Mixture:
     def __init__(self, name, materials: list[str] = [], weights: list[int] = []) -> None:
         self.name = name
-        self.db: Database = None
+        self.db: Database | None = None
         self.materials = materials[:]
         self.weights = weights[:]
     def add(self, mat, wt):
         self.materials.append(mat)
         self.weights.append(wt)
     def getCost(self):
+        assert(self.db is not None and self.db.materials is not None)
         cost = 0
         weight = 0
         for wt in self.weights:
             weight += wt
         for i in range(len(self.materials)):
             pct = self.weights[i] / weight
-            cost += pct * self.db.materials[self.materials[i]].getCostPerLb()
+            costPerLb = self.db.materials[self.materials[i]].getCostPerLb()
+            assert(costPerLb is not None)
+            cost += pct * costPerLb
         return cost
     def getBatchWeight(self):
         weight = 0
@@ -133,6 +137,7 @@ class Mixture:
             weight += wt
         return weight
     def getProp(self, prop, LOI = True):
+        assert(self.db is not None and self.db.materials is not None)
         ret = 0
         for i in range(len(self.materials)):
             matVal = getattr(self.db.materials[self.materials[i]], prop)
@@ -140,7 +145,9 @@ class Mixture:
                 ret = None
                 break
             pct = self.weights[i] / self.getBatchWeight()
-            ret += (pct * matVal / (1 - self.db.materials[self.materials[i]].LOI / 100)) if LOI else pct * matVal
+            matLOI = self.db.materials[self.materials[i]].LOI
+            assert(matLOI is not None)
+            ret += (pct * matVal / (1 - matLOI / 100)) if LOI else pct * matVal
         return ret
     
     def getTuple(self):
@@ -201,24 +208,24 @@ class Globals:
 class ImportedPart:
     def __init__(self, name) -> None:
         self.name = name
-        self.db: Database = None
-        self.weight = None
-        self.boardQty = None
-        self.mix = None
-        self.pressing = None # trucks / shift
-        self.turning = None # hours / truck
-        self.loading = None # hours / truck
-        self.unloading = None # hours / truck
+        self.db: Database | None = None
+        self.weight: float | None = None
+        self.boardQty: int | None = None
+        self.mix: str | None = None
+        self.pressing: int | None = None # trucks / shift
+        self.turning: float | None = None # hours / truck
+        self.loading: float | None = None # hours / truck
+        self.unloading: float | None = None # hours / truck
         self.inspection = None # pieces / hour
-        self.scrap = None
-        self.box = None
-        self.piecesPerBox = None
-        self.pallet = None
-        self.boxesPerPallet = None
-        self.pad = None
-        self.padsPerBox = None
+        self.scrap: float | None = None
+        self.box: str | None = None
+        self.piecesPerBox: int | None = None
+        self.pallet: str | None = None
+        self.boxesPerPallet: int | None = None
+        self.pad: list[str] | None = None
+        self.padsPerBox: list[int] | None = None
         self.misc = []
-        self.price = None
+        self.price: float | None = None
 
     def setProduction(self, weight, boardQty, mix, pressing, turning, loading, unloading, inspection, scrap, price):
         self.weight = weight
@@ -243,42 +250,67 @@ class ImportedPart:
         self.misc.extend(misc)
 
     def getMixCost(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
+        assert(self.mix is not None)
         return self.weight * self.db.mixtures[self.mix].getCost()
     
     def getGasCost(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
         return self.weight * self.db.globals.gasCost
     
     def getMatlCost(self):
         return self.getMixCost() + self.getGasCost()
     
     def getBatchingTime(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
         return self.weight * self.db.globals.batchingFactor
     
     def getPressingTime(self):
+        assert(self.pressing is not None)
+        assert(self.boardQty is not None)
         return 8 / (18 * self.pressing * self.boardQty)
     
     def getTurningTime(self):
+        assert(self.turning is not None)
+        assert(self.boardQty is not None)
         return self.turning / (18 * self.boardQty)
     
     def getLoadingTime(self):
+        assert(self.loading is not None)
+        assert(self.boardQty is not None)
         return self.loading / (18 * self.boardQty)
     
     def getUnloadingTime(self):
+        assert(self.unloading is not None)
+        assert(self.boardQty is not None)
         return self.unloading / (18 * self.boardQty)
     
     def getInspectionTime(self):
+        assert(self.inspection is not None)
         return 1 / self.inspection
     
     def getLaborHours(self):
         return self.getBatchingTime() + self.getPressingTime() + self.getTurningTime() + self.getLoadingTime() + self.getUnloadingTime() + self.getInspectionTime()
     
     def getLaborCost(self):
+        assert(self.db is not None)
         return self.getLaborHours() * self.db.globals.laborCost
     
     def getGrossMatlLaborCost(self):
+        assert(self.scrap is not None)
         return (self.getMatlCost() + self.getLaborCost()) / (1 - self.scrap)
     
     def getPackagingCost(self):
+        assert(self.db is not None)
+        assert(self.box is not None)
+        assert(self.pad is not None)
+        assert(self.padsPerBox is not None)
+        assert(self.pallet is not None)
+        assert(self.piecesPerBox is not None)
+        assert(self.boxesPerPallet is not None)
         boxCost = self.db.packaging[self.box].price
         padCost = 0
         padStrs = []
@@ -294,12 +326,16 @@ class ImportedPart:
         return perPalletCost / (self.piecesPerBox * self.boxesPerPallet) + miscCost
     
     def getManufacturingOverhead(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
         return self.weight * self.db.globals.manufacturingOverhead
     
     def getManufacturingCost(self):
         return self.getGrossMatlLaborCost() + self.getPackagingCost() + self.getManufacturingOverhead()
     
     def getSGA(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
         return self.weight * self.db.globals.SGA
     
     def getTotalCost(self):
@@ -315,9 +351,16 @@ class ImportedPart:
         return (self.price - self.getVariableCost()) / self.price
     
     def getProductivity(self):
+        assert(self.weight is not None)
+        assert(self.scrap is not None)
         return self.weight * (1 - self.scrap) / self.getLaborHours()
     
     def convert(self):
+        assert(self.boardQty is not None)
+        assert(self.pressing is not None)
+        assert(self.turning is not None)
+        assert(self.loading is not None)
+        assert(self.unloading is not None)
         res = Part(self.name)
         res.setProduction(self.weight, self.mix,
                           self.pressing * 18 * self.boardQty / 8, 18 * self.boardQty / self.turning, 18 * self.boardQty / self.loading, 18 * self.boardQty / self.unloading,
@@ -336,25 +379,25 @@ class ImportedPart:
 class Part:
     def __init__(self, name) -> None:
         self.name = name
-        self.db: Database = None
-        self.weight = None
+        self.db: Database | None = None
+        self.weight: float | None = None
         self.mix = None
-        self.pressing = None # pieces / hour
-        self.turning = None # pieces / hour
-        self.loading = None # pieces / hour
-        self.unloading = None # pieces / hour
-        self.inspection = None # pieces / hour
+        self.pressing: float | None = None # pieces / hour
+        self.turning: float | None = None # pieces / hour
+        self.loading: float | None = None # pieces / hour
+        self.unloading: float | None = None # pieces / hour
+        self.inspection: float | None = None # pieces / hour
         self.greenScrap = None
         self.fireScrap = None
-        self.box = None
-        self.piecesPerBox = None
-        self.pallet = None
-        self.boxesPerPallet = None
-        self.pad = None
-        self.padsPerBox = None
+        self.box: str | None = None
+        self.piecesPerBox: int | None = None
+        self.pallet: str | None = None
+        self.boxesPerPallet: int | None = None
+        self.pad: list[str] | None = None
+        self.padsPerBox: list[int] | None = None
         self.misc = []
+        self.price: float | None = None
         self.sales = None
-        self.price = None
 
     def setProduction(self, weight, mix, pressing, turning, loading, unloading, inspection, greenScrap, fireScrap, price):
         self.weight = weight
@@ -379,38 +422,61 @@ class Part:
         self.misc.extend(misc)
 
     def getMixCost(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
+        assert(self.mix is not None)
         return self.weight * self.db.mixtures[self.mix].getCost()
     
     def getGasCost(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
         return self.weight * self.db.globals.gasCost
     
     def getMatlCost(self):
         return self.getMixCost() + self.getGasCost()
     
     def getBatchingTime(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
         return self.weight * self.db.globals.batchingFactor
     
     def getPressingTime(self):
+        assert(self.pressing is not None)
         return 1 / self.pressing
     
     def getTurningTime(self):
+        assert(self.turning is not None)
         return 1 / self.turning
     
     def getLaborHours(self):
         return self.getBatchingTime() + self.getPressingTime() + self.getTurningTime()
     
     def getLaborCost(self):
+        assert(self.db is not None)
         return self.getLaborHours() * self.db.globals.laborCost
     
     def getScrap(self):
+        assert(self.db is not None)
+        assert(self.fireScrap is not None)
         # return self.greenScrap +self.fireScrap
         return (self.db.globals.greenScrap / 100) + self.fireScrap
     
     #  
+    def getGrossMatlCost(self):
+        return self.getMatlCost() / (1 - self.getScrap()) 
+    def getGrossLaborCost(self):
+        return self.getLaborCost() / (1 - self.getScrap()) 
     def getGrossMatlLaborCost(self):
         return (self.getMatlCost() + self.getLaborCost()) / (1 - self.getScrap()) 
     
     def getPackagingCost(self):
+        assert(self.db is not None)
+        assert(self.box is not None)
+        assert(self.piecesPerBox is not None)
+        assert(self.pad is not None)
+        assert(self.padsPerBox is not None)
+        assert(self.pallet is not None)
+        assert(self.boxesPerPallet is not None)
         boxCost = self.db.packaging[self.box].price
         padCost = 0
         for i in range(len(self.pad)):
@@ -424,15 +490,20 @@ class Part:
         return perPalletCost / (self.piecesPerBox * self.boxesPerPallet) + miscCost
     
     def getVariableCost(self):
+        assert(self.db is not None)
         return self.getGrossMatlLaborCost() + self.getPackagingCost() + self.db.globals.inspection + self.db.globals.loading
     
     def getManufacturingOverhead(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
         return self.weight * self.db.globals.manufacturingOverhead
     
     def getManufacturingCost(self):
         return self.getVariableCost() + self.getManufacturingOverhead()
     
     def getSGA(self):
+        assert(self.db is not None)
+        assert(self.weight is not None)
         return self.weight * self.db.globals.SGA
     
     def getTotalCost(self):
@@ -441,8 +512,14 @@ class Part:
     def getGM(self):
         return (self.price - self.getManufacturingCost()) / self.price
     
+    def solveGM(self, target):
+        return self.getManufacturingCost() / (1 - target)
+    
     def getCM(self):
         return (self.price - self.getVariableCost()) / self.price
+    
+    def solveCM(self, target):
+        return self.getVariableCost() / (1 - target)
     
     def getProductivity(self):
         return self.weight * (1 - self.getScrap()) / self.getLaborHours()
@@ -487,19 +564,157 @@ class Part:
         self.sales = values[18]
 
     def __str__(self) -> str:
+        assert(self.fireScrap is not None)
         res = "({} | {}, {}, {}, {}, {}, {}, {}, {}% + {}% | {}, {}, {}, {}, {}, {}, {} | {})".format(self.name,
                 self.weight, self.mix, self.pressing, self.turning, f"UNUSED: {self.loading}", f"UNUSED: {self.unloading}", f"UNUSED: {self.inspection}", f"UNUSED: {self.greenScrap}", 100 * self.fireScrap,
                 self.box, self.piecesPerBox, self.pallet, self.boxesPerPallet, self.pad, self.padsPerBox, self.misc,
                 self.price)
         return res
 
+class MaterialInventoryRecord:
+    def __init__(self) -> None:
+        self.name: str | None = None
+        self.date: datetime.date | None = None
+        self.price: float | None = None
+        self.amount: float | None = None
+    
+    def setName(self, name: str):
+        self.name = name
+
+    def setDate(self, date: datetime.date):
+        self.date = date
+
+    def setInventory(self, price: float, amount: float):
+        self.price = price
+        self.amount = amount
+    
+    def getTuple(self):
+        assert(self.name is not None)
+        assert(self.date is not None)
+        assert(self.price is not None)
+        assert(self.amount is not None)
+        return (
+            self.name,
+            self.date.isoformat(),
+            self.price,
+            self.amount
+        )
+    
+    def fromTuple(self, row: tuple[str, str, float, float]):
+        self.setName(row[0])
+        self.setDate(datetime.date.fromisoformat(row[1]))
+        self.setInventory(row[2], row[3])
+
+class PartInventoryRecord:
+    def __init__(self) -> None:
+        self.name: str | None = None
+        self.date: datetime.date | None = None
+        self.price: float | None = None
+        self.amount40: float | None = None
+        self.amount60: float | None = None
+        self.amount80: float | None = None
+        self.amount100: float | None = None
+    
+    def setName(self, name: str):
+        self.name = name
+
+    def setDate(self, date: datetime.date):
+        self.date = date
+
+    def setInventory(self, price: float, amount40: float, amount60: float, amount80: float, amount100: float):
+        self.price = price
+        self.amount40 = amount40
+        self.amount60 = amount60
+        self.amount80 = amount80
+        self.amount100 = amount100
+    
+    def getTuple(self):
+        assert(self.name is not None)
+        assert(self.date is not None)
+        assert(self.price is not None)
+        assert(self.amount40 is not None)
+        assert(self.amount60 is not None)
+        assert(self.amount80 is not None)
+        assert(self.amount100 is not None)
+        return (
+            self.name,
+            self.date.isoformat(),
+            self.price,
+            self.amount40,
+            self.amount60,
+            self.amount80,
+            self.amount100
+        )
+    
+    def fromTuple(self, row: tuple[str, str, float, float, float, float, float]):
+        self.setName(row[0])
+        self.setDate(datetime.date.fromisoformat(row[1]))
+        self.setInventory(row[2], row[3], row[4], row[5], row[6])
+
+class Inventory:
+    def __init__(self, date: datetime.date | None = None) -> None:
+        self.date = date
+        self.materials: dict[str, MaterialInventoryRecord] = {}
+        self.parts: dict[str, PartInventoryRecord] = {}
+    
+    def updateMaterialRecord(self, oldName: str, newName: str):
+        assert(oldName in self.materials)
+        if not newName == oldName:
+            materials = {newName if key == oldName else key:val for key, val in self.materials.items()}
+            self.materials = materials
+            self.materials[newName].setName(newName)
+    
+    def addMaterialRecord(self, materialRec: MaterialInventoryRecord):
+        assert(materialRec.name is not None)
+        assert(self.date is not None)
+        assert(self.date == materialRec.date)
+        assert(not materialRec.name in self.parts)
+
+        self.materials[materialRec.name] = materialRec
+    
+    def delMaterialRecord(self, name: str):
+        assert(name in self.materials)
+        del self.materials[name]
+    
+    def updatePartRecord(self, oldName: str, newName: str):
+        assert(oldName in self.parts)
+        if not newName == oldName:
+            parts = {newName if key == oldName else key:val for key, val in self.parts.items()}
+            self.parts = parts
+            self.parts[newName].setName(newName)
+    
+    def addPartRecord(self, partRec: PartInventoryRecord):
+        assert(partRec.name is not None)
+        assert(self.date is not None)
+        assert(self.date == partRec.date)
+        assert(not partRec.name in self.parts)
+
+        self.parts[partRec.name] = partRec
+    
+    def delPartRecord(self, name: str):
+        assert(name in self.parts)
+        del self.parts[name]
+    
+    def getMaterialTuples(self):
+        ret = []
+        for name in self.materials:
+            ret.append(self.materials[name].getTuple())
+        return ret
+    
+    def getPartTuples(self):
+        ret = []
+        for name in self.parts:
+            ret.append(self.parts[name].getTuple())
+        return ret
+
 class Database:
-    def __init__(self, globals: Globals, materials: dict[str, Material], mixtures: dict[str, Mixture], packaging: dict[str, Package], parts: dict[str, Part]) -> None:
+    def __init__(self, globals: Globals, materials: dict[str, Material], mixtures: dict[str, Mixture], packaging: dict[str, Package], parts: dict[str, Part], inventories: dict[datetime.date, Inventory]) -> None:
         self.globals = globals
         self.materials = materials
         self.mixtures = mixtures
         self.packaging = packaging
         self.parts = parts
+        self.inventories = inventories
         for entry in self.materials:
             self.materials[entry].db = self
         for entry in self.mixtures:
@@ -542,6 +757,7 @@ class Database:
                     part.box = name
                 if part.pallet == entry:
                     part.pallet = name
+                assert(part.pad is not None)
                 for i in range(len(part.pad)):
                     if part.pad[i] == entry:
                         part.pad[i] = name
@@ -562,6 +778,7 @@ class Database:
             part = self.parts[pname]
             used = used or part.box == name
             used = used or part.pallet == name
+            assert(part.pad is not None)
             for i in range(len(part.pad)):
                 used = used or part.pad[i] == name
             for i in range(len(part.misc)):
@@ -630,6 +847,42 @@ class Database:
             del self.materials[name]
         return usedIn
     
+    def addInventory(self, date: datetime.date):
+        assert(not date in self.inventories)
+        self.inventories[date] = Inventory(date)
+    
+    def delInventory(self, date: datetime.date):
+        assert(date in self.inventories)
+        del self.inventories[date]
+    
+    def updateMaterialInventory(self, date: datetime.date, oldName: str, newName: str):
+        assert(date in self.inventories)
+        self.inventories[date].updateMaterialRecord(oldName, newName)
+    
+    def addMaterialInventory(self, materialRec: MaterialInventoryRecord):
+        assert(materialRec.date is not None)
+        if not materialRec.date in self.inventories:
+            self.addInventory(materialRec.date)
+        self.inventories[materialRec.date].addMaterialRecord(materialRec)
+    
+    def delMaterialInventory(self, date: datetime.date, name: str):
+        assert(date in self.inventories)
+        self.inventories[date].delMaterialRecord(name)
+    
+    def updatePartInventory(self, date: datetime.date, oldName: str, newName: str):
+        assert(date in self.inventories)
+        self.inventories[date].updatePartRecord(oldName, newName)
+    
+    def addPartInventory(self, partRec: PartInventoryRecord):
+        assert(partRec.date is not None)
+        if not partRec.date in self.inventories:
+            self.addInventory(partRec.date)
+        self.inventories[partRec.date].addPartRecord(partRec)
+    
+    def delPartInventory(self, date: datetime.date, name: str):
+        assert(date in self.inventories)
+        self.inventories[date].delPartRecord(name)
+    
     def materialCosts(self):
         for entry in self.materials:
             cost = self.materials[entry].getCostPerLb()
@@ -668,4 +921,4 @@ class Database:
         return "\n".join(res)
     
 def emptyDB():
-    return Database(Globals(), {}, {}, {}, {})
+    return Database(Globals(), {}, {}, {}, {}, {})

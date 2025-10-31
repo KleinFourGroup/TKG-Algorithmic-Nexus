@@ -44,6 +44,7 @@ class FileManager:
                 return False
         except Exception as e:
             print(f"Initialization error: {repr(e)}")
+            assert(self.dbFile is not None)
             self.dbFile.close()
             return False
 
@@ -60,6 +61,7 @@ class FileManager:
         self.dbFile.commit()
 
         def clearOld(dbName, currDict):
+            assert(self.dbFile is not None)
             res = self.dbFile.execute(f"SELECT name FROM {dbName}")
             deleted = [vals for vals in res.fetchall() if not vals[0] in currDict]
             if len(deleted) > 0:

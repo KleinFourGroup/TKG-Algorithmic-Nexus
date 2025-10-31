@@ -13,7 +13,7 @@ def createTab():
     return tab
 
 class MainWindow(QWidget):
-    def __init__(self, db: Database = None):
+    def __init__(self, db: Database | None = None):
         super().__init__()
         self.setWindowTitle("Algorithmic Nexus for Information and Knowledge Analysis")
         if db == None:

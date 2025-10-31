@@ -16,7 +16,7 @@ class MixturesTab(QWidget):
         # self.error = None
         self.genTableData()
         self.table = DBTable(self.mixtures, self.headers)
-        self.table.parentTab = self
+        self.table.parentTab = self # type: ignore
 
         self.selection = []
         self.selectLabel = QLabel("Selection: N/A")
@@ -153,7 +153,7 @@ class MixturesDetailsWindow(QWidget):
             ]
         ])
 
-        widgetFromList(self, labels)
+        widgetFromList(self, labels) # type: ignore
         self.show()
 
 class MixturesEditWindow(QWidget):
@@ -193,7 +193,7 @@ class MixturesEditWindow(QWidget):
         errors = []
         name = self.mainLayout[0][1].text()
         if name in self.mainApp.db.mixtures:
-            if isNew or (not name == self.mixture.name):
+            if isNew or (self.mixture is not None and not name == self.mixture.name):
                 errors.append(f"Mixture name '{name}' already in use")
         materials = []
         weights = []
@@ -211,7 +211,7 @@ class MixturesEditWindow(QWidget):
                 self.mixture = Mixture(name)
                 self.mainApp.db.addMixture(self.mixture)
             else:
-                assert(not isNone)
+                assert(not self.mixture == None)
                 self.mainApp.db.updateMixture(self.mixture.name, name)
             self.mixture.materials = []
             self.mixture.weights = []

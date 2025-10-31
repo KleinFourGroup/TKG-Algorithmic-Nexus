@@ -7,32 +7,32 @@ class DBTableModel(QAbstractTableModel):
         self._data = data
         self.headers = headers
 
-    def data(self, index, role):
-        if role == Qt.DisplayRole:
+    def data(self, index, role): # type: ignore
+        if role == Qt.DisplayRole: # type: ignore
             # See below for the nested-list data structure.
             # .row() indexes into the outer list,
             # .column() indexes into the sub-list
             return self._data[index.row()][index.column()]
 
-    def rowCount(self, index):
+    def rowCount(self, index): # type: ignore
         # The length of the outer list.
         return len(self._data)
 
-    def columnCount(self, index):
+    def columnCount(self, index): # type: ignore
         # The following takes the first sub-list, and returns
         # the length (only works if all rows are an equal length)
         return len(self.headers)
     
-    def headerData(self, section, orientation, role):
+    def headerData(self, section, orientation, role): # type: ignore
         # section is the index of the column/row.
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
+        if role == Qt.DisplayRole: # type: ignore
+            if orientation == Qt.Horizontal: # type: ignore
                 return str(self.headers[section])
 
-            if orientation == Qt.Vertical:
+            if orientation == Qt.Vertical: # type: ignore
                 return str(section)
     
-    def setData(self, data):
+    def setData(self, data): # type: ignore
         self.beginResetModel()
         self._data = data
         self.endResetModel()

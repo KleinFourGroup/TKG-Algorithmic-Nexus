@@ -65,13 +65,13 @@ def stringToList(string: str, kind):
 
 def newHLine(width):
     hline = QFrame()
-    hline.setFrameShape(QFrame.HLine)
+    hline.setFrameShape(QFrame.HLine) # type: ignore
     hline.setLineWidth(width)
     return hline
 
 def newVLine(width):
     vline = QFrame()
-    vline.setFrameShape(QFrame.VLine)
+    vline.setFrameShape(QFrame.VLine) # type: ignore
     vline.setLineWidth(width)
     return vline
 

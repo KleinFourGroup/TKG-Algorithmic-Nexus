@@ -10,5 +10,5 @@ class ErrorWindow(QWidget):
         super().__init__()     
         labels = [[QLabel(err)] for err in errors]
 
-        widgetFromList(self, labels)
+        widgetFromList(self, labels) # type: ignore
         self.show()

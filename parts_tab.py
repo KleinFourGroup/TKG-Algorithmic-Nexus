@@ -7,7 +7,7 @@ from error import ErrorWindow, errorMessage
 from utils import getComboBox, widgetFromList, checkInput, startfile
 
 from report import PDFReport
-import os
+import os, math
 
 class PartsTab(QWidget):
     def __init__(self, mainApp: MainWindow) -> None:
@@ -26,6 +26,8 @@ class PartsTab(QWidget):
         details.clicked.connect(self.openDetails)
         edit = QPushButton("Edit")
         edit.clicked.connect(self.openEdits)
+        margins = QPushButton("Margins")
+        margins.clicked.connect(self.openMargins)
         new = QPushButton("New")
         new.clicked.connect(self.openNew)
         delete = QPushButton("Delete")
@@ -37,6 +39,7 @@ class PartsTab(QWidget):
         barLayout.addWidget(self.selectLabel)
         barLayout.addWidget(details)
         barLayout.addWidget(edit)
+        barLayout.addWidget(margins)
         barLayout.addWidget(new)
         barLayout.addWidget(delete)
         barLayout.addWidget(report)
@@ -52,7 +55,7 @@ class PartsTab(QWidget):
             item = db.parts[entry]
             isQuote = 0 if isinstance(item.sales, int) else 1
             return (isQuote, entry)
-        self.headers = ["Part", "Weight", "Mix", "Materials", "Labor", "Scrap", "Packaging", "Var. Cost", "Man. Cost", "Total Cost", "Price", "Sales"]
+        self.headers = ["Part", "Weight", "Mix", "Materials", "Labor", "Scrap", "Packaging", "Total Cost", "Price", "GM", "CM", "Sales"]
         self.parts = [[
             entry,
             "{} lbs".format(db.parts[entry].weight),
@@ -61,10 +64,12 @@ class PartsTab(QWidget):
             "${:.4f}".format(db.parts[entry].getLaborCost()),
             "{:.2f}%".format(100 * db.parts[entry].getScrap()),
             "${:.4f}".format(db.parts[entry].getPackagingCost()),
-            "${:.4f}".format(db.parts[entry].getVariableCost()),
-            "${:.4f}".format(db.parts[entry].getManufacturingCost()),
+            # "${:.4f}".format(db.parts[entry].getVariableCost()),
+            # "${:.4f}".format(db.parts[entry].getManufacturingCost()),
             "${:.4f}".format(db.parts[entry].getTotalCost()),
             "${:.4f}".format(db.parts[entry].price),
+            "{:.2f}%".format(db.parts[entry].getGM() * 100),
+            "{:.2f}%".format(db.parts[entry].getCM() * 100),
             str(db.parts[entry].sales)
         ] for entry in db.parts]
         self.parts.sort(key=lambda row: getKey(row[0]))
@@ -80,6 +85,14 @@ class PartsTab(QWidget):
         for part in self.selection:
             print(part)
             self.windows.append(PartsDetailsWindow(part, self.mainApp))
+    
+    def openMargins(self):
+        if len(self.selection) == 0:
+            # self.error = ErrorWindow(["No parts selected."])
+            errorMessage(self.mainApp, ["No parts selected."])
+        for part in self.selection:
+            print(part)
+            self.windows.append(PartsMarginsWindow(part, self.mainApp))
     
     def openEdits(self):
         for part in self.selection:
@@ -126,8 +139,40 @@ class PartsDetailsWindow(QWidget):
             [QLabel(f"Pressing: {part.pressing} pieces/hour"), QLabel(f"Turning: {part.turning} pieces/hour")],
             [QLabel(f"Box: {part.box}"), QLabel(f"Pieces / box: {part.piecesPerBox}"), QLabel(f"Pallet: {part.pallet}"), QLabel(f"Boxes / pallet: {part.boxesPerPallet}"), QLabel(f"Pads: {", ".join(part.pad)}"), QLabel(f"Pads / box: {", ".join(map(str, part.padsPerBox))}"), QLabel(f"Misc.: {", ".join(part.misc)}")],
             [QLabel(f"Green scrap: {part.db.globals.greenScrap}%"), QLabel(f"Fire scrap: {100 * part.fireScrap}%")],
+            [QLabel(f"Var. Cost: ${part.getVariableCost():.3f}"), QLabel(f"Man. Cost: ${part.getManufacturingCost():.3f}")],
             [QLabel(f"Price: ${part.price}"), QLabel(f"Annual sales: ${part.sales}")]
         ]
+
+        widgetFromList(self, labels)
+        self.show()
+
+class PartsMarginsWindow(QWidget):
+    def __init__(self, entry, mainApp: MainWindow):
+        super().__init__()
+        self.mainApp = mainApp
+        self.setWindowTitle(f"Margin Calculator: {entry}")
+
+        part = self.mainApp.db.parts[entry]        
+        labels = []
+        for percent in range(20, 70, 5):
+            target = percent / 100
+            priceG = math.floor(part.solveGM(target) * 10000) / 10000
+            priceC = math.floor(part.solveCM(target) * 10000) / 10000
+            def getUpdate(wind, part, price):
+                def updatePrice():
+                    part.price = price
+                    QMessageBox.information(self, "Success", f"{entry} price set to ${price}!")
+                    wind.mainApp.partsTab.refreshTable()
+                    wind.close()
+                return updatePrice
+            buttonG = QPushButton("Apply")
+            buttonG.clicked.connect(getUpdate(self, part, priceG))
+            buttonC = QPushButton("Apply")
+            buttonC.clicked.connect(getUpdate(self, part, priceC))
+            labels.append([
+                QLabel(f"{percent}% GM price: ${priceG:.4f}"), buttonG,
+                QLabel(f"{percent}% CM price: ${priceC:.4f}"), buttonC
+            ])
 
         widgetFromList(self, labels)
         self.show()

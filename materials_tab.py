@@ -13,7 +13,7 @@ class MaterialsTab(QWidget):
         # self.error = None
         self.genTableData()
         self.table = DBTable(self.materials, self.headers)
-        self.table.parentTab = self
+        self.table.parentTab = self # type: ignore
 
         self.selection = []
         self.selectLabel = QLabel("Selection: N/A")
@@ -121,7 +121,7 @@ class MaterialsDetailsWindow(QWidget):
             ]
         ]
 
-        widgetFromList(self, labels)
+        widgetFromList(self, labels) # type: ignore
         self.show()
 
 class MaterialsEditWindow(QWidget):
@@ -181,7 +181,7 @@ class MaterialsEditWindow(QWidget):
         errors = []
         name = self.mainLayout[0][1].text()
         if name in self.mainApp.db.materials:
-            if isNew or (not name == self.material.name):
+            if isNew or (self.material is not None and not name == self.material.name):
                 errors.append(f"Material name '{name}' already in use")
         price = checkInput(self.mainLayout[1][1].text(), float, "nonneg", errors, "price")
         freight = checkInput(self.mainLayout[1][4].text(), float, "nonneg", errors, "freight")
@@ -208,7 +208,7 @@ class MaterialsEditWindow(QWidget):
                 self.material = Material(name)
                 self.mainApp.db.addMaterial(self.material)
             else:
-                assert(not isNone)
+                assert(self.material is not None)
                 self.mainApp.db.updateMaterial(self.material.name, name)
             self.material.price = price
             self.material.freight = freight

@@ -13,7 +13,7 @@ class PackagingTab(QWidget):
         # self.error = None
         self.genTableData()
         self.table = DBTable(self.data, self.headers)
-        self.table.parentTab = self
+        self.table.parentTab = self # type: ignore
 
         self.selection = []
         self.selectLabel = QLabel("Selection: N/A")
@@ -126,7 +126,7 @@ class PackagingEditWindow(QWidget):
         errors = []
         name = self.mainLayout[0][1].text()
         if name in self.mainApp.db.packaging:
-            if isNew or (not name == self.item.name):
+            if isNew or (self.item is not None and not name == self.item.name):
                 errors.append(f"Packaging name '{name}' already in use")
         kind = self.mainLayout[1][1].currentText()
         price = checkInput(self.mainLayout[1][3].text(), float, "nonneg", errors, "price")
@@ -137,7 +137,7 @@ class PackagingEditWindow(QWidget):
                 self.item = Package(name, None, None)
                 self.mainApp.db.addPackaging(self.item)
             else:
-                assert(not isNone)
+                assert(not self.item == None)
                 self.mainApp.db.updatePackaging(self.item.name, name)
             self.item.kind = kind
             self.item.price = price

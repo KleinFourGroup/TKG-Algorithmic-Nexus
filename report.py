@@ -54,7 +54,7 @@ class PDFReport:
         self.drawText(text)
         self.setFont(*oldFont)
     
-    def drawTable(self, data: list[list[str]], headers: list[str] = None, widths: list[float] = None):
+    def drawTable(self, data: list[list[str]], headers: list[str] | None = None, widths: list[float] | None = None):
         hasHeader = not headers == None
         columns = len(widths) if not widths == None else len(headers) if hasHeader else len(data[0]) if len(data) > 0 else 1
 
@@ -128,16 +128,16 @@ class PDFReport:
 
             self.drawSection(f"{mixName} Chemical Analysis")
             data = [
-                ("SiO2", f"{mix.getProp("SiO2"):.4f}%"),
-                ("Al2O3", f"{mix.getProp("Al2O3"):.4f}%"),
-                ("Fe2O3", f"{mix.getProp("Fe2O3"):.4f}%"),
-                ("TiO2", f"{mix.getProp("TiO2"):.4f}%"),
-                ("Li2O", f"{mix.getProp("Li2O"):.4f}%"),
-                ("P2O5", f"{mix.getProp("P2O5"):.4f}%"),
-                ("Na2O", f"{mix.getProp("Na2O"):.4f}%"),
-                ("CaO", f"{mix.getProp("CaO"):.4f}%"),
-                ("K2O", f"{mix.getProp("K2O"):.4f}%"),
-                ("MgO", f"{mix.getProp("MgO"):.4f}%")
+                ["SiO2", f"{mix.getProp("SiO2"):.4f}%"],
+                ["Al2O3", f"{mix.getProp("Al2O3"):.4f}%"],
+                ["Fe2O3", f"{mix.getProp("Fe2O3"):.4f}%"],
+                ["TiO2", f"{mix.getProp("TiO2"):.4f}%"],
+                ["Li2O", f"{mix.getProp("Li2O"):.4f}%"],
+                ["P2O5", f"{mix.getProp("P2O5"):.4f}%"],
+                ["Na2O", f"{mix.getProp("Na2O"):.4f}%"],
+                ["CaO", f"{mix.getProp("CaO"):.4f}%"],
+                ["K2O", f"{mix.getProp("K2O"):.4f}%"],
+                ["MgO", f"{mix.getProp("MgO"):.4f}%"]
             ]
             self.drawTable(data)
 
@@ -157,11 +157,18 @@ class PDFReport:
             self.pdf.save()
 
     def salesReport(self):
-        parts = [self.db.parts[name] for name in self.db.parts.keys() if isinstance(self.db.parts[name].sales, int) and self.db.parts[name].sales > 0]
+        parts = [self.db.parts[name] for name in self.db.parts.keys() if isinstance(self.db.parts[name].sales, int) and self.db.parts[name].sales > 0] # type: ignore
         data = []
+        sales = 0
         total = 0
+        totalLab = 0
+        totalMatl = 0
         for part in parts:
-            data.append([f"{part.name}", f"${part.getManufacturingCost():.4f}", f"{part.sales}", f"${part.sales * part.getManufacturingCost():.2f}"])
+            assert(part.sales is not None)
+            data.append([f"{part.name}", f"${part.getManufacturingCost():.4f}", f"{part.sales}", f"${part.sales * part.getGrossLaborCost():.2f}", f"${part.sales * part.getGrossMatlCost():.2f}", f"${part.sales * part.getManufacturingCost():.2f}"])
+            sales += part.sales
+            totalLab += part.sales * part.getGrossLaborCost()
+            totalMatl += part.sales * part.getGrossMatlCost()
             total += part.sales * part.getManufacturingCost()
         while len(data) > 0:
             self.setupPage()
@@ -169,11 +176,11 @@ class PDFReport:
             self.skipLines(2)
 
             self.drawSection("Cost Analysis Report" if len(data) == len(parts) else "Sales (cont.)")
-            headers = ["Part", "Manufacturing Cost", "Sales", "COGS"]
+            headers = ["Part", "Man. Cost", "Sales", "Gross Lab.","Gross Mat.", "COGS"]
             drawn = self.drawTable(data, headers)
 
             if drawn == len(data):
-                self.drawTable([], ["Total", "---", "---", f"${total:.2f}"])
+                self.drawTable([], ["Total", "---", f"{sales}", f"${totalLab:.2f}", f"${totalMatl:.2f}", f"${total:.2f}"])
             
             data = data[drawn:]
             self.nextPage()
