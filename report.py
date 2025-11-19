@@ -1,4 +1,5 @@
 from math import floor
+import datetime
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
@@ -183,5 +184,66 @@ class PDFReport:
                 self.drawTable([], ["Total", "---", f"{sales}", f"${totalLab:.2f}", f"${totalMatl:.2f}", f"${total:.2f}"])
             
             data = data[drawn:]
+            self.nextPage()
+        self.pdf.save()
+
+    def inventoryReport(self, date: datetime.date):
+        assert(date in self.db.inventories)
+        materialRecs = [self.db.inventories[date].materials[name] for name in self.db.inventories[date].materials.keys()]
+        partRecs = [self.db.inventories[date].parts[name] for name in self.db.inventories[date].parts.keys()]
+        dataMatl = []
+        dataPart = []
+        currValMatl = 0
+        currValPart = 0
+        origValMatl = 0
+        origValPart = 0
+        for material in materialRecs:
+            assert(material.name is not None)
+            assert(material.cost is not None)
+            assert(material.amount is not None)
+            currCost = self.db.materials[material.name].getCostPerLb() if material.name in self.db.materials else None
+            dataMatl.append([f"{material.name}", "N/A" if currCost is None else f"${currCost:.4f}", f"${material.cost:.4f}", f"{material.amount}"])
+            if currCost is not None:
+                currValMatl += currCost * material.amount
+            origValMatl += material.cost * material.amount
+        for part in partRecs:
+            assert(part.name is not None)
+            assert(part.cost is not None)
+            assert(part.amount40 is not None)
+            assert(part.amount60 is not None)
+            assert(part.amount80 is not None)
+            assert(part.amount100 is not None)
+            currCost = self.db.parts[part.name].getTotalCost() if part.name in self.db.parts else None
+            dataPart.append([f"{part.name}", "N/A" if currCost is None else f"${currCost:.4f}", f"${part.cost:.4f}", f"{part.amount40}", f"{part.amount60}", f"{part.amount80}", f"{part.amount100}"])
+            if currCost is not None:
+                currValPart += 0.4 * currCost * part.amount40 + 0.6 * currCost * part.amount60 + 0.8 * currCost * part.amount80 + currCost * part.amount100
+            origValPart += 0.4 * part.cost * part.amount40 + 0.6 * part.cost * part.amount60 + 0.8 * part.cost * part.amount80 + part.cost * part.amount100
+        while len(dataMatl) > 0:
+            self.setupPage()
+            self.drawTitle(f"TKG Inventory Report for {date.isoformat()}")
+            self.skipLines(2)
+
+            self.drawSection("Materials Inventory" if len(dataMatl) == len(materialRecs) else "Materials Inventory (cont.)")
+            headers = ["Material", "Current Cost", "Original Cost", "Amount"]
+            drawn = self.drawTable(dataMatl, headers)
+
+            if drawn == len(dataMatl):
+                self.drawTable([], ["Total", f"{currValMatl:.4f}", f"${origValMatl:.4f}", "---"])
+            
+            dataMatl = dataMatl[drawn:]
+            self.nextPage()
+        while len(dataPart) > 0:
+            self.setupPage()
+            self.drawTitle(f"TKG Inventory Report for {date.isoformat()}")
+            self.skipLines(2)
+
+            self.drawSection("Parts Inventory" if len(dataPart) == len(partRecs) else "Parts Inventory (cont.)")
+            headers = ["Part", "Curr. Cost", "Orig. Cost", "Pressed", "Finished", "Fired", "Completed"]
+            drawn = self.drawTable(dataPart, headers)
+
+            if drawn == len(dataPart):
+                self.drawTable([], ["Total", f"{currValPart:.4f}", f"${origValPart:.4f}", "---", "---", "---", "---"])
+            
+            dataPart = dataPart[drawn:]
             self.nextPage()
         self.pdf.save()

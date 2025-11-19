@@ -1,7 +1,8 @@
 import sqlite3
+import datetime
 
 from app import MainWindow
-from records import Material, Mixture, Package, Part
+from records import Material, Mixture, Package, Part, MaterialInventoryRecord, PartInventoryRecord
 
 class FileManager:
     def __init__(self, mainApp: MainWindow) -> None:
@@ -15,7 +16,7 @@ class FileManager:
             self.dbFile = sqlite3.connect(self.filePath)
             res = self.dbFile.execute("SELECT name FROM sqlite_master")
             tables = [row[0] for row in res.fetchall()]
-            if len(tables) > 10:
+            if len(tables) > 14:
                 print(f"Initialization error: too many tables in {self.filePath}.  Found:")
                 for tab in tables:
                     print(f" * {tab}")
@@ -34,9 +35,16 @@ class FileManager:
                 self.dbFile.execute("CREATE TABLE mixtures(name PRIMARY KEY, materials, weights)")
                 self.dbFile.execute("CREATE TABLE packaging(name PRIMARY KEY, kind, cost)")
                 self.dbFile.execute("CREATE TABLE parts(name PRIMARY KEY, weight, mix, pressing, turning, loading, unloading, inspection, greenScrap, fireScrap, box, piecesPerBox, pallet, boxesPerPallet, pad, padsPerBox, misc, price, sales)")
+                self.dbFile.execute("CREATE TABLE materialInventory(name, date, cost, amount, UNIQUE(name, date))")
+                self.dbFile.execute("CREATE TABLE partInventory(name, date, cost, amount40, amount60, amount80, amount100, UNIQUE(name, date))")
                 self.dbFile.commit()
                 return True
             elif len(tables) == 10 and "globals" in tables and "materials" in tables and "mixtures" in tables and "packaging" in tables and "parts" in tables:
+                self.dbFile.execute("CREATE TABLE materialInventory(name, date, cost, amount, UNIQUE(name, date))")
+                self.dbFile.execute("CREATE TABLE partInventory(name, date, cost, amount40, amount60, amount80, amount100, UNIQUE(name, date))")
+                self.dbFile.commit()
+                return True
+            elif len(tables) == 14 and "globals" in tables and "materials" in tables and "mixtures" in tables and "packaging" in tables and "parts" in tables and "materialInventory" in tables and "partInventory" in tables:
                 return True
             else:
                 print(f"Initialization error: wrong tables in {self.filePath}")
@@ -116,6 +124,48 @@ class FileManager:
         self.dbFile.commit()
         clearOld("parts", db.parts)
 
+        print(f"Saving materials inventories to {self.filePath}")
+        for date in db.inventories:
+            valsList = db.inventories[date].getMaterialTuples()
+            for vals in valsList:
+                try:
+                    self.dbFile.execute("INSERT OR REPLACE INTO materialInventory VALUES (?, ?, ?, ?)", vals)
+                    print(f" * Saving {vals}")
+                except Exception as e:
+                    print(f" * Error saving {vals}: {repr(e)}")
+        self.dbFile.commit()
+
+        res = self.dbFile.execute(f"SELECT name, date FROM materialInventory")
+        deleted = [vals for vals in res.fetchall() if not datetime.date.fromisoformat(vals[1]) in db.inventories or not vals[0] in db.inventories[datetime.date.fromisoformat(vals[1])].materials]
+        if len(deleted) > 0:
+            try:
+                res.executemany(f"DELETE FROM materialInventory WHERE (name, date)=(?, ?)", deleted)
+                print(f" * Deleting old entries {", ".join([f"({vals[0]}, {vals[1]})" for vals in deleted])}")
+            except Exception as e:
+                print(f" * Error deleting old entries {", ".join([f"({vals[0]}, {vals[1]})" for vals in deleted])}: {repr(e)}")
+        self.dbFile.commit()
+        
+        print(f"Saving parts inventories to {self.filePath}")
+        for date in db.inventories:
+            valsList = db.inventories[date].getPartTuples()
+            for vals in valsList:
+                try:
+                    self.dbFile.execute("INSERT OR REPLACE INTO partInventory VALUES (?, ?, ?, ?, ?, ?, ?)", vals)
+                    print(f" * Saving {vals}")
+                except Exception as e:
+                    print(f" * Error saving {vals}: {repr(e)}")
+        self.dbFile.commit()
+
+        res = self.dbFile.execute(f"SELECT name, date FROM partInventory")
+        deleted = [vals for vals in res.fetchall() if not datetime.date.fromisoformat(vals[1]) in db.inventories or not vals[0] in db.inventories[datetime.date.fromisoformat(vals[1])].parts]
+        if len(deleted) > 0:
+            try:
+                res.executemany(f"DELETE FROM partInventory WHERE (name, date)=(?, ?)", deleted)
+                print(f" * Deleting old entries {", ".join([f"({vals[0]}, {vals[1]})" for vals in deleted])}")
+            except Exception as e:
+                print(f" * Error deleting old entries {", ".join([f"({vals[0]}, {vals[1]})" for vals in deleted])}: {repr(e)}")
+        self.dbFile.commit()
+
     def loadFile(self):
         assert((not self.filePath == None) and (not self.dbFile == None))
         from records import emptyDB
@@ -167,6 +217,24 @@ class FileManager:
             part.db = db
             print(f" * Loaded {values}")
             print(f" --> Loaded {part}")
+
+        print(f"Loading material inventories from {self.filePath}")
+        res = self.dbFile.execute("SELECT * FROM materialInventory")
+        for values in res.fetchall():
+            rec = MaterialInventoryRecord()
+            rec.fromTuple(values)
+            db.addMaterialInventory(rec)
+            print(f" * Loaded {values}")
+            print(f" --> Loaded {rec}")
+
+        print(f"Loading part inventories from {self.filePath}")
+        res = self.dbFile.execute("SELECT * FROM partInventory")
+        for values in res.fetchall():
+            rec = PartInventoryRecord()
+            rec.fromTuple(values)
+            db.addPartInventory(rec)
+            print(f" * Loaded {values}")
+            print(f" --> Loaded {rec}")
 
     def setFile(self, filePath):
         oldPath = self.filePath

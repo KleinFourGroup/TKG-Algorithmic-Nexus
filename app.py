@@ -42,6 +42,9 @@ class MainWindow(QWidget):
         from packaging_tab import PackagingTab
         self.packagingTab = PackagingTab(self)
         self.tab_widget.addTab(self.packagingTab, "Packaging")
+        from inventory_tab import InventoryTab
+        self.inventoryTab = InventoryTab(self)
+        self.tab_widget.addTab(self.inventoryTab, "Inventory")
         from globals_tab import GlobalsTab
         self.globalsTab = GlobalsTab(self)
         self.tab_widget.addTab(self.globalsTab, "Globals")
@@ -93,6 +96,7 @@ class MainWindow(QWidget):
         self.mixturesTab.refreshTable()
         self.packagingTab.refreshTable()
         self.partsTab.refreshTable()
+        self.inventoryTab.refresh()
         self.globalsTab.refreshTab()
     
     def save(self):

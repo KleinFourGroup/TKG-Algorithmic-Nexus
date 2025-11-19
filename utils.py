@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QFrame
-import base64, os, sys
+from PySide6.QtCore import QDate
+import base64, os, sys, datetime
 
 def getComboBox(items: list[str], item):
     box = QComboBox()
@@ -82,3 +83,9 @@ def startfile(path):
         os.startfile(path)
     else:
         os.system(f"open {path}")
+
+def toQDate(date: datetime.date):
+    return QDate(date.year, date.month, date.day)
+
+def fromQDate(date: QDate):
+    return datetime.date(date.year(), date.month(), date.day())

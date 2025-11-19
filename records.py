@@ -575,7 +575,7 @@ class MaterialInventoryRecord:
     def __init__(self) -> None:
         self.name: str | None = None
         self.date: datetime.date | None = None
-        self.price: float | None = None
+        self.cost: float | None = None
         self.amount: float | None = None
     
     def setName(self, name: str):
@@ -584,19 +584,19 @@ class MaterialInventoryRecord:
     def setDate(self, date: datetime.date):
         self.date = date
 
-    def setInventory(self, price: float, amount: float):
-        self.price = price
+    def setInventory(self, cost: float, amount: float):
+        self.cost = cost
         self.amount = amount
     
     def getTuple(self):
         assert(self.name is not None)
         assert(self.date is not None)
-        assert(self.price is not None)
+        assert(self.cost is not None)
         assert(self.amount is not None)
         return (
             self.name,
             self.date.isoformat(),
-            self.price,
+            self.cost,
             self.amount
         )
     
@@ -609,7 +609,7 @@ class PartInventoryRecord:
     def __init__(self) -> None:
         self.name: str | None = None
         self.date: datetime.date | None = None
-        self.price: float | None = None
+        self.cost: float | None = None
         self.amount40: float | None = None
         self.amount60: float | None = None
         self.amount80: float | None = None
@@ -621,8 +621,8 @@ class PartInventoryRecord:
     def setDate(self, date: datetime.date):
         self.date = date
 
-    def setInventory(self, price: float, amount40: float, amount60: float, amount80: float, amount100: float):
-        self.price = price
+    def setInventory(self, cost: float, amount40: float, amount60: float, amount80: float, amount100: float):
+        self.cost = cost
         self.amount40 = amount40
         self.amount60 = amount60
         self.amount80 = amount80
@@ -631,7 +631,7 @@ class PartInventoryRecord:
     def getTuple(self):
         assert(self.name is not None)
         assert(self.date is not None)
-        assert(self.price is not None)
+        assert(self.cost is not None)
         assert(self.amount40 is not None)
         assert(self.amount60 is not None)
         assert(self.amount80 is not None)
@@ -639,7 +639,7 @@ class PartInventoryRecord:
         return (
             self.name,
             self.date.isoformat(),
-            self.price,
+            self.cost,
             self.amount40,
             self.amount60,
             self.amount80,
@@ -846,6 +846,17 @@ class Database:
         if len(usedIn) == 0:
             del self.materials[name]
         return usedIn
+    
+    def updateInventory(self, oldDate: datetime.date, date: datetime.date):
+        assert(oldDate in self.inventories)
+        assert(not date in self.inventories)
+        inventory = self.inventories[oldDate]
+        for material, record in inventory.materials.items():
+            record.setDate(date)
+        for part, record in inventory.parts.items():
+            record.setDate(date)
+        del self.inventories[oldDate]
+        self.inventories[date] = inventory
     
     def addInventory(self, date: datetime.date):
         assert(not date in self.inventories)
