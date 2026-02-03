@@ -236,7 +236,7 @@ class MaterialsInventoryTab(QWidget):
         self.headers = ["Material", "Current Cost", "Original Cost", "Amount"]
         self.tableData = [] if db == None else [[
             "{}".format(entry),
-            "{:.4f}".format(self.mainApp.db.materials[entry].getCostPerLb() if entry in self.mainApp.db.materials else 0),
+            "{:.4f}".format(self.mainApp.db.materials[entry].getCostPerLb() if entry in self.mainApp.db.materials and self.mainApp.db.materials[entry].getCostPerLb() is not None else 0),
             "{}".format(db[entry].cost),
             "{}".format(db[entry].amount)
 
@@ -293,8 +293,8 @@ class MaterialsInventoryTab(QWidget):
                 assert(db[entry].amount is not None)
                 if entry in self.mainApp.db.materials:
                     currCost = self.mainApp.db.materials[entry].getCostPerLb()
-                    assert(currCost is not None)
-                    currVal += currCost * db[entry].amount
+                    if currCost is not None:
+                        currVal += currCost * db[entry].amount
                 origVal += db[entry].cost * db[entry].amount # type: ignore
             self.currValueLabel.setText(f"Current Total Materials Value: {currVal:.4f}")
             self.origValueLabel.setText(f"Original Total Materials Value: {origVal:.4f}")
@@ -311,10 +311,11 @@ class MaterialInventoryEditWindow(QWidget):
             assert(entry.date == date)
 
         materials = ["None"]
-        if entry is not None and not entry.name in self.mainApp.db.materials:
+        if entry is not None:
             assert(entry.name is not None)
-            materials.append(entry.name)
-        materials.extend([key for key in self.mainApp.db.materials])
+            if not entry.name in self.mainApp.db.materials or self.mainApp.db.materials[entry.name].getCostPerLb() is None:
+                materials.append(entry.name)
+        materials.extend([key for key in self.mainApp.db.materials if self.mainApp.db.materials[key].getCostPerLb() is not None])
 
         self.selectedName = None if entry is None else entry.name
         self.options = getComboBox(materials, self.selectedName)
@@ -457,7 +458,7 @@ class PartsInventoryTab(QWidget):
         self.headers = ["Part", "Current Cost", "Original Cost", "Pressed", "Finished", "Fired", "Completed"]
         self.tableData = [] if db == None else [[
             "{}".format(entry),
-            "{:.4f}".format(self.mainApp.db.parts[entry].getTotalCost() if entry in self.mainApp.db.parts else 0),
+            "{:.4f}".format(self.mainApp.db.parts[entry].getManufacturingCost() if entry in self.mainApp.db.parts else 0),
             "{}".format(db[entry].cost),
             "{}".format(db[entry].amount40),
             "{}".format(db[entry].amount60),
@@ -518,7 +519,7 @@ class PartsInventoryTab(QWidget):
                 assert(db[entry].amount80 is not None)
                 assert(db[entry].amount100 is not None)
                 if entry in self.mainApp.db.parts:
-                    currCost = self.mainApp.db.parts[entry].getTotalCost()
+                    currCost = self.mainApp.db.parts[entry].getManufacturingCost()
                     assert(currCost is not None)
                     currVal += 0.4 * currCost * db[entry].amount40 + 0.6 * currCost * db[entry].amount60 + 0.8 * currCost * db[entry].amount80 + currCost * db[entry].amount100
                 origVal += 0.4 * db[entry].cost * db[entry].amount40 + 0.6 * db[entry].cost * db[entry].amount60 + 0.8 * db[entry].cost * db[entry].amount80 + db[entry].cost * db[entry].amount100 # type: ignore
@@ -552,12 +553,12 @@ class PartInventoryEditWindow(QWidget):
         self.costB.clicked.connect(self.refreshCost)
 
         self.mainLayout = [
-            [QLabel("Material:"), self.options],
+            [QLabel("Part:"), self.options],
             [QLabel("Cost:"), self.costEntry, self.costB],
-            [QLabel("Amount Pressed:"), QLineEdit("" if entry is None else f"{entry.amount40}")],
-            [QLabel("Amount Finished:"), QLineEdit("" if entry is None else f"{entry.amount60}")],
-            [QLabel("Amount Fired:"), QLineEdit("" if entry is None else f"{entry.amount80}")],
-            [QLabel("Amount Completed:"), QLineEdit("" if entry is None else f"{entry.amount100}")],
+            [QLabel("Amount Pressed:"), QLineEdit("0" if entry is None else f"{entry.amount40}")],
+            [QLabel("Amount Finished:"), QLineEdit("0" if entry is None else f"{entry.amount60}")],
+            [QLabel("Amount Fired:"), QLineEdit("0" if entry is None else f"{entry.amount80}")],
+            [QLabel("Amount Completed:"), QLineEdit("0" if entry is None else f"{entry.amount100}")],
         ]
         self.mainLayout.append([QPushButton("Update"), QPushButton("Create")])
 
@@ -575,7 +576,7 @@ class PartInventoryEditWindow(QWidget):
         elif not self.selectedName in self.mainApp.db.parts:
             return None
         else:
-            return self.mainApp.db.parts[self.selectedName].getTotalCost()
+            return self.mainApp.db.parts[self.selectedName].getManufacturingCost()
 
     def selectName(self, pick: str):
         if pick == "" or pick == "None":

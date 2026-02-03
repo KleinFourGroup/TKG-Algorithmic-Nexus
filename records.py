@@ -604,6 +604,9 @@ class MaterialInventoryRecord:
         self.setName(row[0])
         self.setDate(datetime.date.fromisoformat(row[1]))
         self.setInventory(row[2], row[3])
+    
+    def __str__(self):
+        return f"({self.name}, {self.date} | {self.cost}, {self.amount})"
 
 class PartInventoryRecord:
     def __init__(self) -> None:
@@ -650,6 +653,9 @@ class PartInventoryRecord:
         self.setName(row[0])
         self.setDate(datetime.date.fromisoformat(row[1]))
         self.setInventory(row[2], row[3], row[4], row[5], row[6])
+    
+    def __str__(self):
+        return f"({self.name}, {self.date} | {self.cost}, {self.amount40}, {self.amount60}, {self.amount80}, {self.amount100})"
 
 class Inventory:
     def __init__(self, date: datetime.date | None = None) -> None:

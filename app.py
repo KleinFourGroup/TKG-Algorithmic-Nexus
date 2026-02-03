@@ -4,6 +4,8 @@ from utils import newHLine
 
 import os
 
+VERSION = "7.2"
+
 def createTab():
     tab = QWidget()
     label = QLabel("TODO")
@@ -15,7 +17,7 @@ def createTab():
 class MainWindow(QWidget):
     def __init__(self, db: Database | None = None):
         super().__init__()
-        self.setWindowTitle("Algorithmic Nexus for Information and Knowledge Analysis")
+        self.setWindowTitle(f"Algorithmic Nexus for Information and Knowledge Analysis v{VERSION}")
         if db == None:
             self.db = emptyDB()
         else:

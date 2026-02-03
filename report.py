@@ -187,63 +187,145 @@ class PDFReport:
             self.nextPage()
         self.pdf.save()
 
-    def inventoryReport(self, date: datetime.date):
-        assert(date in self.db.inventories)
-        materialRecs = [self.db.inventories[date].materials[name] for name in self.db.inventories[date].materials.keys()]
-        partRecs = [self.db.inventories[date].parts[name] for name in self.db.inventories[date].parts.keys()]
+    def inventoryReport(self, currDate: datetime.date):
+        assert(currDate in self.db.inventories)
+        dates = [date for date in self.db.inventories.keys() if date <= currDate]
+        dates.sort(reverse=True)
+        prevDate = dates[1] if len(dates) > 1 else None
+        def processMaterials(date: datetime.date, data: list[list[str]] | None = None):
+            currVal = 0
+            origVal = 0
+            materialRecs = [self.db.inventories[date].materials[name] for name in self.db.inventories[date].materials.keys()]
+            for material in materialRecs:
+                assert(material.name is not None)
+                assert(material.cost is not None)
+                assert(material.amount is not None)
+                currCost = self.db.materials[material.name].getCostPerLb() if material.name in self.db.materials else None
+                if data is not None and material.amount > 0:
+                    data.append([f"{material.name}", "N/A" if currCost is None else f"${currCost:.4f}", f"${material.cost:.4f}", f"{material.amount}", f"${material.cost * material.amount:.4f}"])
+                if currCost is not None:
+                    currVal += currCost * material.amount
+                origVal += material.cost * material.amount
+            return currVal, origVal
+        
+        def processPartsWIP(date: datetime.date, data: list[list[str]] | None = None):
+            currVal = 0
+            origVal = 0
+            partRecs = [self.db.inventories[date].parts[name] for name in self.db.inventories[date].parts.keys()]
+            for part in partRecs:
+                assert(part.name is not None)
+                assert(part.cost is not None)
+                assert(part.amount40 is not None)
+                assert(part.amount60 is not None)
+                assert(part.amount80 is not None)
+                assert(part.amount100 is not None)
+                currCost = self.db.parts[part.name].getManufacturingCost() if part.name in self.db.parts else None
+                if data is not None and (part.amount40 + part.amount60 + part.amount80) > 0:
+                    data.append([f"{part.name}", "N/A" if currCost is None else f"${currCost:.4f}", f"${part.cost:.4f}", f"{part.amount40}", f"{part.amount60}", f"{part.amount80}", f"${0.4 * part.cost * part.amount40 + 0.6 * part.cost * part.amount60 + 0.8 * part.cost * part.amount80:.4f}"])
+                if currCost is not None:
+                    currVal += 0.4 * currCost * part.amount40 + 0.6 * currCost * part.amount60 + 0.8 * currCost * part.amount80
+                origVal += 0.4 * part.cost * part.amount40 + 0.6 * part.cost * part.amount60 + 0.8 * part.cost * part.amount80
+            return currVal, origVal
+        
+        def processPartsCompleted(date: datetime.date, data: list[list[str]] | None = None):
+            currVal = 0
+            origVal = 0
+            partRecs = [self.db.inventories[date].parts[name] for name in self.db.inventories[date].parts.keys()]
+            for part in partRecs:
+                assert(part.name is not None)
+                assert(part.cost is not None)
+                assert(part.amount40 is not None)
+                assert(part.amount60 is not None)
+                assert(part.amount80 is not None)
+                assert(part.amount100 is not None)
+                currCost = self.db.parts[part.name].getManufacturingCost() if part.name in self.db.parts else None
+                if data is not None and part.amount100 > 0:
+                    data.append([f"{part.name}", "N/A" if currCost is None else f"${currCost:.4f}", f"${part.cost:.4f}", f"{part.amount100}", f"${part.cost * part.amount100:.4f}"])
+                if currCost is not None:
+                    currVal += currCost * part.amount100
+                origVal += part.cost * part.amount100
+            return currVal, origVal
+        
         dataMatl = []
-        dataPart = []
-        currValMatl = 0
-        currValPart = 0
-        origValMatl = 0
-        origValPart = 0
-        for material in materialRecs:
-            assert(material.name is not None)
-            assert(material.cost is not None)
-            assert(material.amount is not None)
-            currCost = self.db.materials[material.name].getCostPerLb() if material.name in self.db.materials else None
-            dataMatl.append([f"{material.name}", "N/A" if currCost is None else f"${currCost:.4f}", f"${material.cost:.4f}", f"{material.amount}"])
-            if currCost is not None:
-                currValMatl += currCost * material.amount
-            origValMatl += material.cost * material.amount
-        for part in partRecs:
-            assert(part.name is not None)
-            assert(part.cost is not None)
-            assert(part.amount40 is not None)
-            assert(part.amount60 is not None)
-            assert(part.amount80 is not None)
-            assert(part.amount100 is not None)
-            currCost = self.db.parts[part.name].getTotalCost() if part.name in self.db.parts else None
-            dataPart.append([f"{part.name}", "N/A" if currCost is None else f"${currCost:.4f}", f"${part.cost:.4f}", f"{part.amount40}", f"{part.amount60}", f"{part.amount80}", f"{part.amount100}"])
-            if currCost is not None:
-                currValPart += 0.4 * currCost * part.amount40 + 0.6 * currCost * part.amount60 + 0.8 * currCost * part.amount80 + currCost * part.amount100
-            origValPart += 0.4 * part.cost * part.amount40 + 0.6 * part.cost * part.amount60 + 0.8 * part.cost * part.amount80 + part.cost * part.amount100
+        dataPartWIP = []
+        dataPartCompleted = []
+        currValMatl_currDate, origValMatl_currDate = processMaterials(currDate, dataMatl)
+        currValPartWIP_currDate, origValPartWIP_currDate = processPartsWIP(currDate, dataPartWIP)
+        currValPartCompleted_currDate, origValPartCompleted_currDate = processPartsCompleted(currDate, dataPartCompleted)
+        currValMatl_prevDate, origValMatl_prevDate = processMaterials(prevDate) if prevDate is not None else (0, 0)
+        currValPartWIP_prevDate, origValPartWIP_prevDate = processPartsWIP(prevDate) if prevDate is not None else (0, 0)
+        currValPartCompleted_prevDate, origValPartCompleted_prevDate = processPartsCompleted(prevDate) if prevDate is not None else (0, 0)
+
+        dataDeltas = [
+            ["Materials", f"${currValMatl_currDate:.2f}", f"${origValMatl_prevDate:.2f}" if prevDate is not None else "N/A", f"${currValMatl_currDate - origValMatl_prevDate:.2f}"],
+            ["WIP Parts", f"${currValPartWIP_currDate:.2f}", f"${origValPartWIP_prevDate:.2f}" if prevDate is not None else "N/A", f"${currValPartWIP_currDate - origValPartWIP_prevDate:.2f}"],
+            ["Completed Parts", f"${currValPartCompleted_currDate:.2f}", f"${origValPartCompleted_prevDate:.2f}" if prevDate is not None else "N/A", f"${currValPartCompleted_currDate - origValPartCompleted_prevDate:.2f}"]
+        ]
+        headersDelta = ["Category", "Current Value", f"{prevDate.isoformat() if prevDate is not None else "Prior"} Value", "Change"]
+        self.setupPage()
+        self.drawTitle(f"TKG Inventory Report for {currDate.isoformat()}")
+        self.skipLines(2)
+
+        self.drawSection("Inventory Overview")
+        self.drawTable(dataDeltas, headersDelta)
+        self.drawTable([], [
+            "Total", f"${currValMatl_currDate + currValPartWIP_currDate + currValPartCompleted_currDate:.2f}",
+            f"${origValMatl_prevDate + origValPartWIP_prevDate + origValPartCompleted_prevDate:.2f}" if prevDate is not None else "N/A",
+            f"${(currValMatl_currDate + currValPartWIP_currDate + currValPartCompleted_currDate) - (origValMatl_prevDate + origValPartWIP_prevDate + origValPartCompleted_prevDate):.2f}"
+            ])
+        self.nextPage()
+
+        dataMatl.sort()
+
+        olen = len(dataMatl)
         while len(dataMatl) > 0:
             self.setupPage()
-            self.drawTitle(f"TKG Inventory Report for {date.isoformat()}")
+            self.drawTitle(f"TKG Inventory Report for {currDate.isoformat()}")
             self.skipLines(2)
 
-            self.drawSection("Materials Inventory" if len(dataMatl) == len(materialRecs) else "Materials Inventory (cont.)")
-            headers = ["Material", "Current Cost", "Original Cost", "Amount"]
+            self.drawSection("Materials Inventory" if len(dataMatl) == olen else "Materials Inventory (cont.)")
+            headers = ["Material", "Current Cost", "Original Cost", "Amount", "Value"]
             drawn = self.drawTable(dataMatl, headers)
 
             if drawn == len(dataMatl):
-                self.drawTable([], ["Total", f"{currValMatl:.4f}", f"${origValMatl:.4f}", "---"])
+                self.drawTable([], ["Total", f"${currValMatl_currDate:.4f}", f"${origValMatl_currDate:.4f}", "---", "---"])
             
             dataMatl = dataMatl[drawn:]
             self.nextPage()
-        while len(dataPart) > 0:
+        
+        dataPartWIP.sort()
+
+        olen = len(dataPartWIP)
+        while len(dataPartWIP) > 0:
             self.setupPage()
-            self.drawTitle(f"TKG Inventory Report for {date.isoformat()}")
+            self.drawTitle(f"TKG Inventory Report for {currDate.isoformat()}")
             self.skipLines(2)
 
-            self.drawSection("Parts Inventory" if len(dataPart) == len(partRecs) else "Parts Inventory (cont.)")
-            headers = ["Part", "Curr. Cost", "Orig. Cost", "Pressed", "Finished", "Fired", "Completed"]
-            drawn = self.drawTable(dataPart, headers)
+            self.drawSection("WIP Parts Inventory" if len(dataPartWIP) == olen else "WIP Parts Inventory (cont.)")
+            headers = ["Part", "Curr. Cost", "Orig. Cost", "Pressed", "Finished", "Fired", "Value"]
+            drawn = self.drawTable(dataPartWIP, headers)
 
-            if drawn == len(dataPart):
-                self.drawTable([], ["Total", f"{currValPart:.4f}", f"${origValPart:.4f}", "---", "---", "---", "---"])
+            if drawn == len(dataPartWIP):
+                self.drawTable([], ["Total", f"${currValPartWIP_currDate:.4f}", f"${origValPartWIP_currDate:.4f}", "---", "---", "---", "---"])
             
-            dataPart = dataPart[drawn:]
+            dataPartWIP = dataPartWIP[drawn:]
+            self.nextPage()
+
+        dataPartCompleted.sort()
+
+        olen = len(dataPartCompleted)
+        while len(dataPartCompleted) > 0:
+            self.setupPage()
+            self.drawTitle(f"TKG Inventory Report for {currDate.isoformat()}")
+            self.skipLines(2)
+
+            self.drawSection("Completed Parts Inventory" if len(dataPartCompleted) == olen else "Completed Parts Inventory (cont.)")
+            headers = ["Part", "Curr. Cost", "Orig. Cost", "Completed", "Value"]
+            drawn = self.drawTable(dataPartCompleted, headers)
+
+            if drawn == len(dataPartCompleted):
+                self.drawTable([], ["Total", f"${currValPartCompleted_currDate:.4f}", f"${origValPartCompleted_currDate:.4f}", "---", "---"])
+            
+            dataPartCompleted = dataPartCompleted[drawn:]
             self.nextPage()
         self.pdf.save()
