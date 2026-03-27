@@ -142,7 +142,8 @@ class MixturesDetailsWindow(QWidget):
                 QLabel(f"Na2O: {mixture.getProp("Na2O"):.4f}%"),
                 QLabel(f"CaO: {mixture.getProp("CaO"):.4f}%"),
                 QLabel(f"K2O: {mixture.getProp("K2O"):.4f}%"),
-                QLabel(f"MgO: {mixture.getProp("MgO"):.4f}%")
+                QLabel(f"MgO: {mixture.getProp("MgO"):.4f}%"),
+                QLabel(f"Other: {mixture.getProp("otherChem"):.4f}%")
             ],
             [
                 QLabel(f"+50: {mixture.getProp("Plus50", False):.4f}%"),

@@ -111,7 +111,8 @@ class MaterialsDetailsWindow(QWidget):
             [QLabel(f"Material: {entry}")],
             [QLabel(f"Price: ${material.price} per ton" if not material.price == None else "Price: N/A"), QLabel(f"Freight: ${material.freight} per ton" if not material.freight == None else "Freight: N/A")],
             [QLabel(f"SiO2: {material.SiO2}"), QLabel(f"Al2O3: {material.Al2O3}"), QLabel(f"Fe2O3: {material.Fe2O3}"), QLabel(f"TiO2: {material.TiO2}"), QLabel(f"Li2O: {material.Li2O}")],
-            [QLabel(f"P2O5: {material.P2O5}"), QLabel(f"Na2O: {material.Na2O}"), QLabel(f"CaO: {material.CaO}"), QLabel(f"K2O: {material.K2O}"), QLabel(f"MgO: {material.MgO}"), QLabel(f"LOI: {material.LOI}")],
+            [QLabel(f"P2O5: {material.P2O5}"), QLabel(f"Na2O: {material.Na2O}"), QLabel(f"CaO: {material.CaO}"), QLabel(f"K2O: {material.K2O}"), QLabel(f"MgO: {material.MgO}"), QLabel(f"Other: {material.otherChem}")],
+            [QLabel(f"LOI: {material.LOI}")],
             [
                 QLabel(f"+50: {material.Plus50}%"),
                 QLabel(f"-50+100: {material.Sub50Plus100}%"),
@@ -154,6 +155,7 @@ class MaterialsEditWindow(QWidget):
                 QLabel("CaO:"), QLineEdit(f"{material.CaO if not material == None else ""}"),
                 QLabel("K2O:"), QLineEdit(f"{material.K2O if not material == None else ""}"),
                 QLabel("MgO:"), QLineEdit(f"{material.MgO if not material == None else ""}"),
+                QLabel("Other:"), QLineEdit(f"{material.otherChem if not material == None else ""}"),
                 QLabel("LOI:"), QLineEdit(f"{material.LOI if not material == None else ""}")
             ],
             [
@@ -195,7 +197,8 @@ class MaterialsEditWindow(QWidget):
         CaO = checkInput(self.mainLayout[3][5].text(), float, "nonneg", errors, "CaO")
         K2O = checkInput(self.mainLayout[3][7].text(), float, "nonneg", errors, "K2O")
         MgO = checkInput(self.mainLayout[3][9].text(), float, "nonneg", errors, "MgO")
-        LOI = checkInput(self.mainLayout[3][11].text(), float, "nonneg", errors, "LOI")
+        otherChem = checkInput(self.mainLayout[3][11].text(), float, "nonneg", errors, "otherChem")
+        LOI = checkInput(self.mainLayout[3][13].text(), float, "nonneg", errors, "LOI")
         Plus50 = checkInput(self.mainLayout[4][1].text(), float, "nonneg", errors, "Plus50")
         Sub50Plus100 = checkInput(self.mainLayout[4][4].text(), float, "nonneg", errors, "Sub50Plus100")
         Sub100Plus200 = checkInput(self.mainLayout[4][7].text(), float, "nonneg", errors, "Sub100Plus200")
@@ -214,6 +217,7 @@ class MaterialsEditWindow(QWidget):
             self.material.freight = freight
             self.material.setChems(SiO2, Al2O3, Fe2O3, TiO2, Li2O, P2O5, Na2O, CaO, K2O, MgO, LOI)
             self.material.setSizes(Plus50, Sub50Plus100, Sub100Plus200, Sub200Plus325, Sub325)
+            self.material.otherChem = otherChem
             if isNone:
                 self.material = None
             self.mainApp.materialsTab.refreshTable()

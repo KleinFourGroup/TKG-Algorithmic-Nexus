@@ -24,6 +24,7 @@ class Material:
         self.Sub100Plus200 = None
         self.Sub200Plus325 = None
         self.Sub325 = None
+        self.otherChem = None
     
     def setCost(self, price, freight):
         self.price = price
@@ -74,19 +75,21 @@ class Material:
             self.Sub50Plus100,
             self.Sub100Plus200,
             self.Sub200Plus325,
-            self.Sub325
+            self.Sub325,
+            self.otherChem
         )
     
     def fromTuple(self, vals):
         self.name = vals[0]
         self.setCost(*vals[1:3])
         self.setChems(*vals[3:14])
-        self.setSizes(*vals[14:])
+        self.setSizes(*vals[14:19])
+        self.otherChem = vals[19] if len(vals) > 19 else 0
     
     def __str__(self) -> str:
-        res = "({} | {} {} | {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {} | {}, {}, {}, {}, {})".format(self.name,
+        res = "({} | {} {} | {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {} | {} | {}, {}, {}, {}, {})".format(self.name,
                 self.price, self.freight,
-                 self.SiO2, self.Al2O3, self.Fe2O3, self.TiO2, self.Li2O, self.P2O5, self.Na2O, self.CaO, self.K2O, self.MgO, self.LOI,
+                 self.SiO2, self.Al2O3, self.Fe2O3, self.TiO2, self.Li2O, self.P2O5, self.Na2O, self.CaO, self.K2O, self.MgO, self.LOI, self.otherChem,
                  self.Plus50, self.Sub50Plus100, self.Sub100Plus200, self.Sub200Plus325, self.Sub325)
         return res
     

@@ -199,7 +199,8 @@ class PDFReport:
                 ["Na2O", f"{mix.getProp("Na2O"):.4f}%"],
                 ["CaO", f"{mix.getProp("CaO"):.4f}%"],
                 ["K2O", f"{mix.getProp("K2O"):.4f}%"],
-                ["MgO", f"{mix.getProp("MgO"):.4f}%"]
+                ["MgO", f"{mix.getProp("MgO"):.4f}%"],
+                ["Other", f"{mix.getProp("otherChem"):.4f}%"]
             ]
             self.drawTable(data)
 

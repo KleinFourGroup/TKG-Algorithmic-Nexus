@@ -31,7 +31,7 @@ class FileManager:
             
             if len(tables) == 0:
                 self.dbFile.execute("CREATE TABLE globals(name PRIMARY KEY, value)")
-                self.dbFile.execute("CREATE TABLE materials(name PRIMARY KEY, cost, freight, SiO2, Al2O3, Fe2O3, TiO2, Li2O, P2O5, Na2O, CaO, K2O, MgO, LOI, Plus50, Sub50Plus100, Sub100Plus200, Sub200Plus325, Sub325)")
+                self.dbFile.execute("CREATE TABLE materials(name PRIMARY KEY, cost, freight, SiO2, Al2O3, Fe2O3, TiO2, Li2O, P2O5, Na2O, CaO, K2O, MgO, LOI, Plus50, Sub50Plus100, Sub100Plus200, Sub200Plus325, Sub325, otherChem)")
                 self.dbFile.execute("CREATE TABLE mixtures(name PRIMARY KEY, materials, weights)")
                 self.dbFile.execute("CREATE TABLE packaging(name PRIMARY KEY, kind, cost)")
                 self.dbFile.execute("CREATE TABLE parts(name PRIMARY KEY, weight, mix, pressing, turning, loading, unloading, inspection, greenScrap, fireScrap, box, piecesPerBox, pallet, boxesPerPallet, pad, padsPerBox, misc, price, sales)")
@@ -43,8 +43,16 @@ class FileManager:
                 self.dbFile.execute("CREATE TABLE materialInventory(name, date, cost, amount, UNIQUE(name, date))")
                 self.dbFile.execute("CREATE TABLE partInventory(name, date, cost, amount40, amount60, amount80, amount100, UNIQUE(name, date))")
                 self.dbFile.commit()
+                cols = [row[1] for row in self.dbFile.execute("PRAGMA table_info(materials)").fetchall()]
+                if 'otherChem' not in cols:
+                    self.dbFile.execute("ALTER TABLE materials ADD COLUMN otherChem DEFAULT 0")
+                    self.dbFile.commit()
                 return True
             elif len(tables) == 14 and "globals" in tables and "materials" in tables and "mixtures" in tables and "packaging" in tables and "parts" in tables and "materialInventory" in tables and "partInventory" in tables:
+                cols = [row[1] for row in self.dbFile.execute("PRAGMA table_info(materials)").fetchall()]
+                if 'otherChem' not in cols:
+                    self.dbFile.execute("ALTER TABLE materials ADD COLUMN otherChem DEFAULT 0")
+                    self.dbFile.commit()
                 return True
             else:
                 print(f"Initialization error: wrong tables in {self.filePath}")
@@ -84,7 +92,7 @@ class FileManager:
         for name in db.materials:
             vals = db.materials[name].getTuple()
             try:
-                self.dbFile.execute("INSERT OR REPLACE INTO materials VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", vals)
+                self.dbFile.execute("INSERT OR REPLACE INTO materials VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", vals)
                 print(f" * Saving {vals}")
             except Exception as e:
                 print(f" * Error saving {vals}: {repr(e)}")
